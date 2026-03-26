@@ -1,8 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "turboquant"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.12"
+description = "TurboQuant: near-optimal KV cache quantization (ICLR 2026)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
 dependencies = [
-    "manim>=0.20.1",
+    "mlx>=0.22",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov"]
+integration = ["mlx-lm>=0.22"]
+
+[project.urls]
+Repository = "https://github.com/Ray0907/TurboQuant"
+Paper = "https://arxiv.org/abs/2504.19874"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires mlx-lm and model download (~350 MB)",
 ]
