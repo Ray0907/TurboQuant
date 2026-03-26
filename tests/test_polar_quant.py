@@ -24,7 +24,6 @@ def test_mse_bound(random_vectors):
     C = 2.7
     angles, radius = polar_quantize(rotated, polar_bits=polar_bits)
     x_hat = polar_dequantize(angles, radius, dim=rotated.shape[-1])
-    rv = random_vectors.astype(mx.float32)
     rv = rotated.astype(mx.float32)
     mse = mx.mean((rv - x_hat) ** 2, axis=-1)
     bound = C * (2 ** (-2 * polar_bits)) * mx.mean(rv ** 2, axis=-1)
