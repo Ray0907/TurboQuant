@@ -56,7 +56,9 @@ def qjl_correct(
         Estimate of ``<q, x>`` with shape ``(...)``.
     """
     m = jl_matrix.shape[0]
-    sketch_q = q.astype(mx.float32) @ jl_matrix.T  # (..., m)
-    s_pm1 = signs.astype(mx.float32) * 2 - 1  # {0,1} -> {-1,+1}
-    dot = mx.sum(sketch_q * s_pm1, axis=-1)
-    return math.sqrt(math.pi / 2.0) * (scale.astype(mx.float32) / m) * dot
+    sketch_q = q.astype(mx.float32) @ jl_matrix.T  # (..., q_seq, m)
+    s_pm1 = signs.astype(mx.float32) * 2 - 1        # (..., k_seq, m)
+    # einsum: for each (q, k) pair compute <G@q_i, s_j>
+    dot = mx.einsum("...im,...jm->...ij", sketch_q, s_pm1)  # (..., q_seq, k_seq)
+    # scale: (..., k_seq) -> (..., 1, k_seq) for broadcasting
+    return math.sqrt(math.pi / 2.0) * (scale.astype(mx.float32)[..., None, :] / m) * dot
