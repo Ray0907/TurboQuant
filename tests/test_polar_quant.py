@@ -31,12 +31,14 @@ def test_mse_bound(random_vectors):
 
 
 def test_polar_inner_vs_dot(random_vectors, random_queries):
+    # TurboQuant always applies RHT before quantizing, so test with rotated keys
     polar_bits = 4.0
     keys = random_vectors[:, :, :1, :]
     queries = random_queries
-    angles, radius = polar_quantize(keys, polar_bits=polar_bits)
+    rotated_keys, _ = random_rotate(keys)
+    angles, radius = polar_quantize(rotated_keys, polar_bits=polar_bits)
     approx = polar_inner(queries, angles, radius)
-    exact = mx.sum(queries * keys, axis=-1)
+    exact = mx.einsum("...id,...jd->...ij", queries, rotated_keys)
     rel_err = mx.mean(mx.abs(approx - exact) / (mx.abs(exact) + 1e-8)).item()
     assert rel_err < 0.20
 
