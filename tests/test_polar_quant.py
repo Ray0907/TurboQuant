@@ -1,0 +1,47 @@
+import mlx.core as mx
+import math
+import pytest
+from turboquant.core.polar_quant import polar_quantize, polar_dequantize, polar_inner
+
+
+def test_output_shapes(random_vectors):
+    angles, radius = polar_quantize(random_vectors, polar_bits=2.5)
+    assert radius.shape == random_vectors.shape[:-1]
+    assert angles.shape[-1] < random_vectors.shape[-1]
+
+
+def test_radius_is_l2_norm(random_vectors):
+    expected_norms = mx.linalg.norm(random_vectors, axis=-1)
+    _, radius = polar_quantize(random_vectors, polar_bits=2.5)
+    assert mx.allclose(
+        expected_norms.astype(mx.float32), radius.astype(mx.float32), rtol=1e-3
+    )
+
+
+@pytest.mark.xfail(reason="polar_dequantize not implemented yet")
+def test_mse_bound(random_vectors):
+    polar_bits = 3.0
+    C = 2.7
+    angles, radius = polar_quantize(random_vectors, polar_bits=polar_bits)
+    x_hat = polar_dequantize(angles, radius, dim=random_vectors.shape[-1])
+    rv = random_vectors.astype(mx.float32)
+    mse = mx.mean((rv - x_hat) ** 2, axis=-1)
+    bound = C * (2 ** (-2 * polar_bits)) * mx.mean(rv ** 2, axis=-1)
+    assert bool(mx.all(mse <= bound + 1e-6))
+
+
+def test_polar_inner_vs_dot(random_vectors, random_queries):
+    polar_bits = 4.0
+    keys = random_vectors[:, :, :1, :]
+    queries = random_queries
+    angles, radius = polar_quantize(keys, polar_bits=polar_bits)
+    approx = polar_inner(queries, angles, radius)
+    exact = mx.sum(queries * keys, axis=-1)
+    rel_err = mx.mean(mx.abs(approx - exact) / (mx.abs(exact) + 1e-8)).item()
+    assert rel_err < 0.20
+
+
+def test_deterministic(random_vectors):
+    a1, r1 = polar_quantize(random_vectors, polar_bits=3.0)
+    a2, r2 = polar_quantize(random_vectors, polar_bits=3.0)
+    assert bool(mx.all(a1 == a2)) and bool(mx.all(r1 == r2))
