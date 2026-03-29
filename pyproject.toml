@@ -20,6 +20,7 @@ integration = ["mlx-lm>=0.22"]
 [project.urls]
 Repository = "https://github.com/Ray0907/TurboQuant"
 Paper = "https://arxiv.org/abs/2504.19874"
+"Bug Tracker" = "https://github.com/Ray0907/TurboQuant/issues"
 
 [tool.pytest.ini_options]
 markers = [

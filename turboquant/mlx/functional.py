@@ -99,6 +99,64 @@ def inner_product(queries: mx.array, compressed: CompressedKV) -> mx.array:
     return polar_term + qjl_term
 
 
+def search(
+    query: mx.array,
+    corpus: CompressedKV,
+    top_k: int = 10,
+) -> tuple[mx.array, mx.array]:
+    """Approximate nearest-neighbour search over a compressed corpus.
+
+    No index build step required — add documents, query immediately.
+
+    Args:
+        query:   Query embedding of shape ``[dim]`` or ``[N_q, dim]``.
+        corpus:  Output of :func:`compress` called on ``[N_docs, dim]`` embeddings.
+        top_k:   Number of nearest neighbours to return.
+
+    Returns:
+        scores:  Top-k dot-product scores, shape ``[top_k]`` or ``[N_q, top_k]``.
+        indices: Top-k indices into corpus, same shape as scores.
+    """
+    squeeze = query.ndim == 1
+    if squeeze:
+        query = query[None]  # [1, dim]
+
+    # inner_product expects [..., q_seq, dim]; add dummy batch+head dims
+    q = query[None, None]    # [1, 1, N_q, dim]
+    scores = inner_product(q, corpus)  # [1, 1, N_q, N_docs]
+    scores = scores[0, 0]              # [N_q, N_docs]
+
+    k = min(top_k, scores.shape[-1])
+    top_indices = mx.argsort(scores, axis=-1)[..., -k:][:, ::-1]   # descending
+    top_scores  = mx.take_along_axis(scores, top_indices, axis=-1)
+
+    if squeeze:
+        return top_scores[0], top_indices[0]
+    return top_scores, top_indices
+
+
+def compress_vectors(
+    embeddings: mx.array,
+    bits: float = 3.5,
+    m: int = 64,
+) -> CompressedKV:
+    """Compress a corpus of embedding vectors for fast approximate search.
+
+    Convenience wrapper around :func:`compress` for the ``[N, dim]`` layout
+    used in vector search (as opposed to the ``[B, H, seq, dim]`` KV-cache layout).
+
+    Args:
+        embeddings: Document embeddings of shape ``[N_docs, dim]``.
+        bits:       Bits per element. Must be > 1.0.
+        m:          QJL sketch dimension.
+
+    Returns:
+        :class:`CompressedKV` ready for :func:`search` or :func:`inner_product`.
+    """
+    # Add dummy batch+head dims → [1, 1, N_docs, dim]
+    return compress(embeddings[None, None], bits=bits, m=m)
+
+
 def decompress(compressed: CompressedKV, dim: int) -> mx.array:
     """Reconstruct an approximate key array from its compressed representation.
 
