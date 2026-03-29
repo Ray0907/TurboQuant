@@ -54,6 +54,22 @@ pip install "turboquant[integration]"
 
 ## Algorithm
 
+### Step 1 — Random Rotation (RHT)
+
+Multiplying a KV vector by a random rotation matrix spreads its energy uniformly across all dimensions, making each component equally quantizable.
+
+![Random Rotation](assets/rotation.gif)
+
+### Step 2 — PolarQuant
+
+Pairs of coordinates are converted from Cartesian (x, y) to polar (r, θ). Because post-rotation angles are near-uniformly distributed, a fixed angular grid requires zero per-block normalization overhead.
+
+![PolarQuant](assets/polarquant.gif)
+
+### Full Pipeline
+
+![TurboQuant Pipeline](assets/pipeline.gif)
+
 TurboQuant stacks three transforms:
 
 ```
