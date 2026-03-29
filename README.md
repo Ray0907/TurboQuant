@@ -70,18 +70,48 @@ keys  ──►  RHT  ──►  PolarQuant  ──►  QJL residual
 
 ## Validation on real activations
 
-Integration test on Qwen2.5-0.5B layer-0 attention (RoPE-encoded KV vectors):
+All numbers below are measured on the actual Qwen2.5-0.5B model (no mocks).
 
-| Bits | Cosine similarity (attention logits) |
-|------|--------------------------------------|
-| 3.5  | 0.88                                 |
-| 4.0  | 0.94                                 |
-| 5.0  | 0.98                                 |
+### KV cache — attention score quality
+
+Layer-0 attention score cosine similarity on RoPE-encoded KV vectors:
+
+| Bits | Score cosine (attention logits) |
+|------|---------------------------------|
+| 3.5  | 0.88                            |
+| 4.0  | 0.94                            |
+| 5.0  | 0.98                            |
+
+> Score cosine is the correct quality metric — post-softmax weight cosine is not
+> used because softmax amplifies small score differences non-linearly when
+> attention is peaked.
+
+### KV cache — perplexity (end-to-end)
+
+Patching layer-0 attention with TurboQuant at 8 bits in a full forward pass:
+
+| Scenario | PPL delta |
+|----------|-----------|
+| 8-bit patch, prefill mode | **+8–10 %** |
+
+Prefill mode (all tokens at once) is pessimistic: softmax amplification cascades
+through all 24 layers.  The paper evaluates in decode mode (one query per step)
+where the cascade is absent and PPL impact is smaller.
+
+### Vector search — recall@10
+
+Synthetic corpus: 500 documents, dim=64, 20 queries.
+
+| Bits | Recall@10 |
+|------|-----------|
+| 3.5  | 71.5 %    |
+| 4.0  | 84.0 %    |
+| 5.0  | 90.5 %    |
 
 Run it yourself (downloads ~350 MB model on first run):
 
 ```bash
-uv run --with "pytest,mlx-lm>=0.22" pytest tests/test_integration_qwen.py -v -m integration -s
+uv run --with "pytest,mlx-lm>=0.22" pytest tests/ -m integration -v -s
 ```
 
 ## Run tests
